@@ -1,13 +1,20 @@
 const conn = require("../mariadb");
 const { StatusCodes } = require("http-status-codes");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const dotenv = require("dotenv");
 
 const join = (req, res) => {
   const { email, password } = req.body;
 
-  let sql = "INSERT INTO users (email, password) VALUES (?, ?)";
-  let values = [email, password];
+  let sql = "INSERT INTO users (email, password, salt) VALUES (?, ?, ?)";
+
+  const salt = crypto.randomBytes(10).toString("base64");
+  const hashPassword = crypto
+    .pbkdf2Sync(password, salt, 10000, 10, "sha512")
+    .toString("base64");
+
+  let values = [email, hashPassword, salt];
 
   conn.query(sql, values, (err, results) => {
     if (err) {
@@ -30,8 +37,13 @@ const login = (req, res) => {
     }
 
     const loginUser = results[0];
-    if (loginUser && loginUser.password == password) {
-      // token 발행
+
+    // salt 값을 꺼내서 비밀번호를 암호화한 후, db 내의 비밀번호와 비교
+    const hashPassword = crypto
+      .pbkdf2Sync(password, loginUser.salt, 10000, 10, "sha512")
+      .toString("base64");
+
+    if (loginUser && loginUser.password == hashPassword) {
       const token = jwt.sign(
         {
           email: loginUser.email,
@@ -43,7 +55,6 @@ const login = (req, res) => {
         }
       );
 
-      // cookie에 담기
       res.cookie("token", token, {
         httpOnly: true,
       });
@@ -80,8 +91,14 @@ const passwordResetRequest = (req, res) => {
 const passwordReset = (req, res) => {
   const { email, password } = req.body;
 
-  let sql = `UPDATE users SET password = ? WHERE email = ?`;
-  let values = [password, email];
+  let sql = `UPDATE users SET password = ?, salt = ? WHERE email = ?`;
+
+  const salt = crypto.randomBytes(10).toString("base64");
+  const hashPassword = crypto
+    .pbkdf2Sync(password, salt, 10000, 10, "sha512")
+    .toString("base64");
+
+  let values = [hashPassword, salt, email];
 
   conn.query(sql, values, (err, results) => {
     if (err) {
