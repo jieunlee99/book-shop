@@ -57,7 +57,7 @@ const login = (req, res) => {
 };
 
 const passwordResetRequest = (req, res) => {
-  const { email, password } = req.body;
+  const { email } = req.body;
 
   let sql = `SELECT * FROM users WHERE email = ?`;
   conn.query(sql, email, (err, results) => {
@@ -68,7 +68,9 @@ const passwordResetRequest = (req, res) => {
 
     const user = results[0];
     if (user) {
-      return res.status(StatusCodes.OK).end();
+      return res.status(StatusCodes.OK).json({
+        email: email,
+      });
     } else {
       return res.status(StatusCodes.UNAUTHORIZED).end();
     }
@@ -76,7 +78,21 @@ const passwordResetRequest = (req, res) => {
 };
 
 const passwordReset = (req, res) => {
-  res.json("비밀번호 초기화");
+  const { email, password } = req.body;
+
+  let sql = `UPDATE users SET password = ? WHERE email = ?`;
+  let values = [password, email];
+
+  conn.query(sql, values, (err, results) => {
+    if (err) {
+      console.log(err);
+      return res.status(StatusCodes.BAD_REQUEST).end();
+    }
+
+    if (results.affectedRows == 0)
+      return res.status(StatusCodes.BAD_REQUEST).end();
+    else return res.status(StatusCodes.OK).json(results);
+  });
 };
 
 module.exports = {
