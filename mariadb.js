@@ -1,15 +1,11 @@
-const mariadb = require("mysql2/promise");
+const mariadb = require("mysql2");
 
-const connection = async () => {
-  await mariadb.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "root",
-    database: "BookShop",
-    dateStrings: true,
-  });
-
-  return conn;
-};
+const connection = mariadb.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "root",
+  database: "BookShop",
+  dateStrings: true,
+});
 
 module.exports = connection;
